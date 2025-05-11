@@ -1,0 +1,102 @@
+managed implementation in class ZCL_BEH_VENDORINV_HEAD_TP unique;
+strict ( 2 ); // Or use strict; for draft capabilities if needed later
+
+define behavior for ZI_VendorInvoiceHead_TP alias VendorInvoiceHeader
+persistent table zstg_vend_inv_h
+lock master // if not using draft
+authorization master ( instance ) // More granular authorization if needed
+{
+  // Administrative Fields
+  field ( readonly ) InvoiceUuid, CreatedBy, CreatedAt, LastChangedBy, LastChangedAt, SapDocumentNumber, SapFiscalYear;
+  field ( mandatory : create ) CompanyCode, VendorNumber, InvoiceDate, PostingDate, DocumentCurrency, GrossInvoiceAmount, ReferenceDocumentNumber;
+
+  // Default processing status on create
+  determination SetInitialStatus on modify { create; } // 'on modify' is correct here as it reacts to EML modify for create
+  // Set audit fields
+  determination SetAuditFields on save { create; update; } // 'on save' triggers during the save sequence for create or update operations
+
+
+  // Validations
+  validation ValidateCompanyCode on save { field CompanyCode; }
+  validation ValidateVendor on save { field VendorNumber, CompanyCode; }
+  validation ValidateDates on save { field InvoiceDate, PostingDate; }
+  validation ValidateCurrency on save { field DocumentCurrency; }
+  validation ValidateReferenceDoc on save { field ReferenceDocumentNumber; }
+  // Add more validations as needed, e.g., for amounts, payment terms
+
+  // Actions
+  action ( features : instance ) PostVendorInvoice parameter ZP_InvoicePostResult result [1] $self; // Action to trigger posting
+
+  // CRUD operations
+  create;
+  update;
+  delete;
+
+  // Association to Items
+  association _Items { create; }
+
+  // Mapping for fields from staging table
+  mapping for zstg_vend_inv_h
+    {
+      InvoiceUuid             = invoice_uuid;
+      ExternalInvoiceID       = external_invoice_id;
+      CompanyCode             = company_code;
+      VendorNumber            = vendor_number;
+      InvoiceDate             = invoice_date;
+      PostingDate             = posting_date;
+      DocumentCurrency        = document_currency;
+      GrossInvoiceAmount      = gross_invoice_amount;
+      DocumentHeaderText      = document_header_text;
+      ReferenceDocumentNumber = reference_document_number;
+      PaymentTerms            = payment_terms;
+      BaselineDate            = baseline_date;
+      TaxReportingDate        = tax_reporting_date;
+      ExchangeRate            = exchange_rate;
+      ProcessingStatus        = processing_status;
+      SapDocumentNumber       = sap_document_number;
+      SapFiscalYear           = sap_fiscal_year;
+      ErrorMessage            = error_message;
+      CreatedBy               = created_by;
+      CreatedAt               = created_at;
+      LastChangedBy           = last_changed_by;
+      LastChangedAt           = last_changed_at;
+    }
+}
+
+define behavior for ZI_VendorInvoiceItem_TP alias VendorInvoiceItem
+persistent table zstg_vend_inv_i
+lock dependent by _Header // if not using draft
+authorization dependent by _Header
+
+{
+  field ( readonly ) ItemUuid, ParentUuid;
+  field ( mandatory : create ) GlAccountNumber, AmountInDocumentCurrency; // TaxCode might be mandatory depending on G/L
+
+  // Validations for Item
+  validation ValidateGlAccount on save { field GlAccountNumber; } // CompanyCode from Header
+  validation ValidateTaxCode on save { field TaxCode; }
+  // Add more item-specific validations
+
+  // CRUD operations for items (update, delete are inherited if not specified)
+  // create; // Already enabled by association _Items { create; } in header BDEF
+
+  // Association to Header
+  association _Header;
+
+  // Mapping for fields from staging table
+  mapping for zstg_vend_inv_i
+    {
+      ItemUuid                 = item_uuid;
+      ParentUuid               = parent_uuid;
+      ItemNumber               = item_number;
+      GlAccountNumber          = gl_account_number;
+      AmountInDocumentCurrency = amount_in_doc_curr;
+      TaxCode                  = tax_code;
+      CostCenter               = cost_center;
+      ProfitCenter             = profit_center;
+      OrderNumber              = order_number;
+      WbsElement               = wbs_element;
+      AssignmentNumber         = assignment_number;
+      ItemText                 = item_text;
+    }
+}

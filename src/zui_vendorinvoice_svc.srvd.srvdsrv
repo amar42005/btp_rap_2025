@@ -1,0 +1,5 @@
+@EndUserText.label: 'Vendor Invoice Posting Service'
+define service ZUI_VENDORINVOICE_SVC {
+  expose ZC_VendorInvoiceHead_TP as VendorInvoices;
+  expose ZC_VendorInvoiceItem_TP as VendorInvoiceLineItems;
+}
